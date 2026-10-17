@@ -1,21 +1,15 @@
 #!/usr/bin/python3
-"""Read HTTP access logs and print cumulative statistics."""
+"""Parse HTTP log lines and display cumulative statistics."""
 
-import re
 import sys
 
 
-STATUS_CODES = (200, 301, 400, 401, 403, 404, 405, 500)
-
-LOG_PATTERN = re.compile(
-    r'^(\d{1,3}(?:\.\d{1,3}){3}) - '
-    r'\[[^\]\r\n]+\] "GET /projects/260 HTTP/1\.1" '
-    r'(\d+) (\d+)$'
-)
+STATUS_CODES = ("200", "301", "400", "401",
+                "403", "404", "405", "500")
 
 
 def print_stats(total_size, counts):
-    """Display the total file size and status code counts."""
+    """Print accumulated file size and status counts."""
     print("File size: {}".format(total_size))
 
     for code in STATUS_CODES:
@@ -26,27 +20,31 @@ def print_stats(total_size, counts):
 
 
 def main():
-    """Process log lines and display cumulative statistics."""
+    """Read log lines from standard input."""
     total_size = 0
     counts = {code: 0 for code in STATUS_CODES}
-    lines_seen = 0
+    line_count = 0
 
     try:
         for line in sys.stdin:
-            lines_seen += 1
-            match = LOG_PATTERN.match(line.strip())
+            line_count += 1
+            parts = line.split()
 
-            if match is not None:
-                octets = match.group(1).split(".")
+            if len(parts) >= 2:
+                try:
+                    file_size = int(parts[-1])
+                except ValueError:
+                    pass
+                else:
+                    if file_size >= 0:
+                        total_size += file_size
 
-                if all(int(octet) <= 255 for octet in octets):
-                    status = int(match.group(2))
-                    total_size += int(match.group(3))
+                        status = parts[-2]
 
-                    if status in counts:
-                        counts[status] += 1
+                        if status in counts:
+                            counts[status] += 1
 
-            if lines_seen % 10 == 0:
+            if line_count % 10 == 0:
                 print_stats(total_size, counts)
 
     except KeyboardInterrupt:
